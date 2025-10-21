@@ -1,0 +1,143 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import math
+
+
+def f(x):
+    return (1 + 0.4 * x ** 2) / (1.3 + math.sqrt(0.8 * x ** 2 + 0.4))
+
+a = 0.6
+b = 3.4
+
+fig = plt.figure(figsize=(10, 6))
+X = np.linspace(a, b, 100)
+Y = np.array([f(x) for x in X])
+plt.plot(X, Y, 'k-', linewidth=2)
+plt.vlines([a, b], ymin=-1, ymax=3, colors="red", linestyles="dashed")
+plt.xlabel('x')
+plt.ylabel('f(x)')
+plt.title('График функции f(x) = (1 + 0.4 * x ** 2) / (1.3 + math.sqrt(0.8 * x ** 2 + 0.4))')
+plt.grid(True)
+plt.show()
+
+# Метод трапеций
+def trapezoidal(f, a=-1, b=1, eps=1e-5, max_sub_iters=10):
+    def get_int(f, a, b, n):
+        "интеграл на [a, b] методом трапеций с n отрезками"
+        h = (b - a) / n
+        total = 0.0
+        x_prev = f(a)
+        for i in range(1, n + 1):
+            x_curr = f(a + i * h)
+            total += h * (x_prev + x_curr) / 2.0
+            x_prev = x_curr
+        return total
+    # разбиваем [a, b] на 10 частей 
+    X = np.linspace(a, b, 10)
+    I = 0.0
+    parts = 0
+    for i in range(1, len(X)):
+        left = X[i - 1]
+        right = X[i]
+        segment_len = right - left
+        n = 2
+        iter_count = 0
+        while iter_count < max_sub_iters:
+            Ih = get_int(f, left, right, n)
+            Ih2 = get_int(f, left, right, 2 * n)
+            error_est = abs(Ih - Ih2)
+            # оценка погрешности с учетом длины отрезка
+            if error_est <= eps * 7.0 * segment_len / (2.0 ** iter_count) / (b - a):
+                I += Ih2
+                parts += 2 * n
+                break
+            iter_count += 1
+            n *= 2
+        else:
+            # берем последнее приближение
+            I += Ih2
+            parts += 2 * n
+
+    return I, parts
+
+# Симпсона 
+def simpson(f, a=-1, b=1, eps=1e-5, max_sub_iters=10):
+    def get_int(f, a, b, n):
+        "интеграл на [a, b] методом Симпсона с n отрезками"
+        h = (b - a) / n
+        total = 0.0
+        for i in range(n):
+            x0 = a + i * h
+            x1 = x0 + h / 2.0
+            x2 = x0 + h
+            total += h * (f(x0) + 4.0 * f(x1) + f(x2)) / 6.0
+        return total
+    X = np.linspace(a, b, 10)
+    I = 0.0
+    parts = 0
+    for i in range(1, len(X)):
+        left = X[i - 1]
+        right = X[i]
+        segment_len = right - left
+        n = 2
+        iter_count = 0
+        while iter_count < max_sub_iters:
+            Ih = get_int(f, left, right, n)
+            Ih2 = get_int(f, left, right, 2 * n)
+            error_est = abs(Ih - Ih2)
+            if error_est <= eps * 31.0 * segment_len / (2.0 ** iter_count) / (b - a):
+                I += Ih2
+                parts += 2 * n
+                break
+            iter_count += 1
+            n *= 2
+        else:
+            I += Ih2
+            parts += 2 * n
+
+    return I, parts
+
+# узлы и веса для метода Гаусса
+gauss_params = {
+    2: {
+        "x": [-1.0 / math.sqrt(3.0), 1.0 / math.sqrt(3.0)],
+        "A": [1.0, 1.0]},
+    4: {
+        "x": [-0.86114, -0.33998, 0.33998, 0.86114],
+        "A": [0.34785, 0.65215, 0.65215, 0.34785]},
+    5: {
+        "x": [-0.90618, -0.53846, 0.0, 0.53846, 0.90618],
+        "A": [0.23693, 0.47863, 0.56889, 0.47863, 0.23693]},
+    8: {
+        "x": [-0.96028986, -0.79666648, -0.52553242, -0.18343464, 0.18343464, 0.52553242, 0.79666648, 0.96028986],
+        "A": [0.10122854, 0.22238103, 0.31370664, 0.36268378, 0.36268378, 0.31370664, 0.22238103, 0.10122854]}
+    }
+
+# Метод Гаусса
+def gauss(f, m, a, b):
+    xi = gauss_params[m]["x"]
+    Ai = gauss_params[m]["A"]
+    #преобразование из [-1, 1] в [a, b]
+    if a != -1 or b != 1:
+        xi = [0.5 * (a + b) + 0.5 * (b - a) * t for t in xi]
+    integral = 0.0
+    for i in range(m):
+        integral += Ai[i] * f(xi[i])
+
+    return 0.5 * (b - a) * integral
+
+
+if __name__ == "__main__":
+    print("Методы трапеций и Симпсона")
+    t1, pt1 = trapezoidal(f, a, b, eps=1e-5, max_sub_iters=30)
+    s1, ps1 = simpson(f, a, b, eps=1e-5, max_sub_iters=30)
+    print(f"eps=1e-5, Трапеции: {t1} (частей: {pt1}), Симпсон: {s1} (частей: {ps1})")
+
+    t2, pt2 = trapezoidal(f, a, b, eps=1e-7, max_sub_iters=50)
+    s2, ps2 = simpson(f, a, b, eps=1e-7, max_sub_iters=50)
+    print(f"eps=1e-7, Трапеции: {t2} (частей: {pt2}), Симпсон: {s2} (частей: {ps2})")
+    print()
+    print("Гаусса")
+    for m in [2, 4, 5, 8]:
+        I_gauss = gauss(f, m, a, b)
+        print(f"m = {m}: I = {I_gauss}")
